@@ -1,0 +1,41 @@
+@import 'tailwindcss';
+
+/*
+ * Volt UI is "copy-and-own": consumers only need this one import. Its
+ * `themes/core.css` self-registers an `@source` pointing at Volt's compiled
+ * bundle, so Tailwind scans Volt's own templates for utility classes without
+ * any extra dashboard-side configuration. Angular Movement ships no CSS of
+ * its own (it drives the Web Animations API directly), so it needs no
+ * scanning.
+ */
+@import '@voltui/components/themes.css';
+
+@theme inline {
+  /* Bridge aliases for the exact semantic token names requested for the
+     dashboard; both resolve to Volt's real color values so there is a single
+     source of truth for the palette. */
+  --color-surface-muted: var(--muted);
+  --color-danger: var(--destructive);
+  --color-danger-foreground: var(--destructive-foreground);
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Helvetica, Arial, sans-serif;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

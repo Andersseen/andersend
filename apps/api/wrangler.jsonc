@@ -1,0 +1,44 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "andersend-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-07-29",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true
+  },
+  "vars": {
+    "ENVIRONMENT": "local",
+    "EMAIL_PROVIDER": "mock"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "andersend-db",
+      // Placeholder for local development. Replace with the id printed by
+      // `wrangler d1 create andersend-db` before deploying for real.
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "../../packages/database/migrations"
+    }
+  ],
+  "queues": {
+    "producers": [{ "binding": "EMAIL_QUEUE", "queue": "andersend-emails" }],
+    "consumers": [
+      {
+        "queue": "andersend-emails",
+        "max_batch_size": 10,
+        "max_batch_timeout": 5,
+        "max_retries": 3
+      }
+    ]
+  },
+  // Prepared for the Cloudflare Email Service adapter (see
+  // packages/email-core/src/providers/cloudflare-provider.ts). Not used
+  // locally: EMAIL_PROVIDER=mock is the local default and requires no real
+  // sending domain. Switching this on for real sends requires
+  // `wrangler email sending enable <domain>` first.
+  "send_email": [{ "name": "EMAIL" }]
+  // No `env.production` block yet: this iteration is local-only by design
+  // (see README.md "Future Cloudflare deployment" for the real database_id,
+  // queue, and EMAIL_PROVIDER changes a production environment needs).
+}

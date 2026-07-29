@@ -1,0 +1,3 @@
+# Copy to `.dev.vars` (gitignored) for local development.
+# The dashboard and SDK examples use this exact value.
+ANDERSEND_API_KEY=and_dev_local

@@ -2,19 +2,25 @@
   "name": "andersend",
   "private": true,
   "scripts": {
-    "build": "turbo run build",
     "dev": "turbo run dev",
+    "build": "turbo run build",
     "lint": "turbo run lint",
-    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
-    "check-types": "turbo run check-types"
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "test:e2e": "playwright test --config=e2e/playwright.config.ts",
+    "db:migrate:local": "pnpm --filter @andersseen/api db:migrate:local",
+    "db:seed:local": "pnpm --filter @andersseen/api db:seed:local",
+    "setup:local": "pnpm install && pnpm db:migrate:local && pnpm db:seed:local",
+    "format": "prettier --write \"**/*.{ts,tsx,md,json}\" --ignore-unknown"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.0",
     "prettier": "^3.7.4",
     "turbo": "^2.10.7",
     "typescript": "5.9.2"
   },
-  "packageManager": "pnpm@9.0.0",
+  "packageManager": "pnpm@9.15.0",
   "engines": {
-    "node": ">=18"
+    "node": ">=22"
   }
 }

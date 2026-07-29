@@ -1,0 +1,26 @@
+{
+  "name": "@andersseen/email-templates",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@andersseen/contracts": "workspace:*"
+  },
+  "devDependencies": {
+    "@andersseen/email-core": "workspace:*",
+    "@andersseen/eslint-config": "workspace:*",
+    "@andersseen/typescript-config": "workspace:*",
+    "@cloudflare/workers-types": "^5.20260729.1",
+    "eslint": "^9.39.1",
+    "typescript": "5.9.2",
+    "vitest": "^4.1.10"
+  }
+}

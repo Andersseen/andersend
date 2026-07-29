@@ -1,0 +1,29 @@
+{
+  "name": "@andersseen/database",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./seed": "./src/seed.ts",
+    "./migrations/*": "./migrations/*"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@andersseen/contracts": "workspace:*",
+    "@andersseen/email-core": "workspace:*",
+    "@andersseen/email-templates": "workspace:*"
+  },
+  "devDependencies": {
+    "@andersseen/eslint-config": "workspace:*",
+    "@andersseen/typescript-config": "workspace:*",
+    "@cloudflare/workers-types": "^5.20260729.1",
+    "eslint": "^9.39.1",
+    "typescript": "5.9.2",
+    "vitest": "^4.1.10"
+  }
+}
