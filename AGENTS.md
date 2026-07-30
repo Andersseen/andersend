@@ -60,8 +60,8 @@ pnpm setup:local         # install + db:migrate:local + db:seed:local (first-tim
 pnpm db:migrate:local    # apply D1 migrations locally
 pnpm db:seed:local       # wipe + reseed local D1 data (also POST /v1/dev/reset at runtime)
 
-pnpm deploy:dashboard    # build + wrangler deploy for apps/dashboard
-pnpm deploy:web          # build + wrangler deploy for apps/web (apps/api has no deploy yet)
+pnpm deploy:dashboard    # build + wrangler deploy for apps/dashboard (Cloudflare Worker)
+pnpm deploy:web          # build + wrangler pages deploy for apps/web (Cloudflare Pages; apps/api has no deploy yet)
 
 pnpm format              # prettier --write across ts/tsx/md/json
 ```
@@ -185,10 +185,11 @@ D1 migrations live in `packages/database/migrations` but are applied _from_ `app
 - TypeScript strict mode everywhere; shared tsconfig bases in `packages/typescript-config`.
 - ESLint flat configs shared via `packages/eslint-config` (`base`/`worker`/`angular` variants) —
   don't hand-roll a new eslint config per package.
-- `deploy` scripts are plain `wrangler deploy` (build happens via Turborepo's `dependsOn: ["build"]`
-  for the `deploy` task) — invoke via `turbo run deploy` or `pnpm run deploy`, not bare
-  `pnpm --filter <pkg> deploy`, since that hits pnpm's own built-in `deploy` subcommand instead of
-  the workspace script.
+- `deploy` scripts are plain `wrangler deploy` (`apps/dashboard`) or `wrangler pages deploy`
+  (`apps/web`, which deploys to Cloudflare Pages instead of Workers — see `context.md`); build
+  happens via Turborepo's `dependsOn: ["build"]` for the `deploy` task. Invoke via
+  `turbo run deploy` or `pnpm run deploy`, not bare `pnpm --filter <pkg> deploy`, since that hits
+  pnpm's own built-in `deploy` subcommand instead of the workspace script.
 - Template interpolation is a deliberately simple `{{variableName}}` regex substitution with
   per-variable HTML escaping (`packages/email-core/src/template-renderer.ts`) — not a general
   template engine; don't extend it into one.

@@ -38,7 +38,7 @@ these decisions fit together and `README.md` for how to run everything.
   (see "Deployment" below) is a plain static site with no server runtime to operate.
 - **Zoneless** change detection (`provideZonelessChangeDetection()`), no `zone.js` in the app
   bundle — signals are the state model throughout (`signal`/`computed`/`effect`), consistent with
-  "use signals for local and shared UI state." `zone.js` is still a *test-only* devDependency
+  "use signals for local and shared UI state." `zone.js` is still a _test-only_ devDependency
   because `@analogjs/vitest-angular`'s `TestBed` integration currently peer-depends on it; it is
   never imported by application code.
 - **Volt UI is "copy-and-own,"** but is consumed here as a normal npm dependency
@@ -68,36 +68,47 @@ these decisions fit together and `README.md` for how to run everything.
 
 ## Deployment
 
-- **Workers with static assets (`assets` in `wrangler.jsonc`), not Cloudflare Pages**, for both
-  `apps/dashboard` and `apps/web`. Cloudflare's own docs now frame Pages as the legacy path (there's
-  a dedicated "migrate from Pages" guide) and static-assets Workers get the same feature set as the
-  API Worker already in this repo (`wrangler deploy`, `wrangler tail`, one dashboard, one deploy
-  story) — no reason to run two different Cloudflare products for three apps.
-- **No `main` script in either app's `wrangler.jsonc`** — an assets-only Worker (just `directory`
-  + `not_found_handling`) is a first-class supported config; writing a
-  `return env.ASSETS.fetch(request)` passthrough Worker would be pure boilerplate for two apps that
-  have no server-side logic at all.
-- `not_found_handling: "single-page-application"` on both — the dashboard needs it for deep links
-  into Analog's file-based routes (`/emails/123`); the landing page doesn't strictly need it (one
-  route, anchor links only) but it's harmless and keeps the two configs identical if `apps/web`
-  ever grows a second route.
+- **`apps/dashboard` deploys as a Worker with static assets (`assets` in `wrangler.jsonc`);
+  `apps/web` deploys to Cloudflare Pages (`pages_build_output_dir` in `wrangler.jsonc`)** — these
+  used to be identical Workers-with-assets configs. Cloudflare's own docs now frame Pages as the
+  legacy path (there's a dedicated "migrate from Pages" guide, and `wrangler pages deploy` itself
+  prints "Workers are the recommended way to deploy all new projects"), and static-assets Workers
+  get the same feature set as the API Worker already in this repo — that's still the reasoning for
+  `apps/dashboard`. `apps/web` was switched to Pages anyway at explicit user request (simplicity
+  preference for what is a single static marketing page with zero server logic) — noted here so a
+  future "fix" doesn't quietly revert it back to Workers to match the dashboard.
+- **No `main` script in `apps/dashboard`'s `wrangler.jsonc`** — an assets-only Worker (just
+  `directory` + `not_found_handling`) is a first-class supported config; writing a
+  `return env.ASSETS.fetch(request)` passthrough Worker would be pure boilerplate for an app with no
+  server-side logic at all. `apps/web`'s Pages config has no equivalent `main`/`assets` keys — Pages
+  takes a build output directory directly.
+- `not_found_handling: "single-page-application"` on the dashboard's Worker config — needed for deep
+  links into Analog's file-based routes (`/emails/123`). `apps/web` has exactly one route (anchor
+  links only, no deep links), so its Pages config has no `_redirects` file / SPA fallback — nothing
+  to fall back to yet.
 - **`deploy` is a Turborepo task** (`dependsOn: ["build"]`, `cache: false`) rather than a raw shell
   chain in the root scripts, so `pnpm deploy:dashboard` / `pnpm deploy:web` get turbo's build
   caching for free (skips the rebuild if `dist/client` is already current) instead of always
   rebuilding.
-- **The per-app `deploy` script is deliberately just `wrangler deploy`**, not
-  `vite build && wrangler deploy` — `deploy` collides with pnpm's own built-in `pnpm deploy`
-  subcommand (workspace package extraction, unrelated to Cloudflare), so anything invoking it needs
-  to go through `turbo run deploy` or `pnpm run deploy` (explicit `run`) rather than bare
-  `pnpm --filter <pkg> deploy`, which would hit pnpm's built-in instead of the script.
+- **The per-app `deploy` script is deliberately just `wrangler deploy`** (`apps/dashboard`) or
+  `wrangler pages deploy` (`apps/web`), not `vite build && wrangler ...` — `deploy` collides with
+  pnpm's own built-in `pnpm deploy` subcommand (workspace package extraction, unrelated to
+  Cloudflare), so anything invoking it needs to go through `turbo run deploy` or `pnpm run deploy`
+  (explicit `run`) rather than bare `pnpm --filter <pkg> deploy`, which would hit pnpm's built-in
+  instead of the script.
+- **The Cloudflare Pages project (`andersend-web`) is a one-time manual prerequisite** —
+  `wrangler pages deploy` fails with "The Pages project does not exist" if it hasn't been created
+  first (`wrangler pages project create andersend-web --production-branch=main`). Unlike Workers,
+  `wrangler deploy` does not auto-create Pages projects on first deploy. Already done for this repo;
+  only relevant again if the project is ever deleted.
 - **CI deploys `apps/dashboard` and `apps/web` as two independent jobs** (`deploy-dashboard`,
   `deploy-web` in `.github/workflows/ci.yml`), both gated on `needs: build` and
   `github.ref == 'refs/heads/main'` (never on PRs), using
   [`cloudflare/wrangler-action@v4`](https://github.com/cloudflare/wrangler-action). Kept as two
   jobs instead of one combined job so either app can fail/redeploy independently and so the Actions
-  UI shows per-app status. Requires `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` repo
-  secrets that are **not** set yet — the jobs will fail at the `wrangler-action` step until someone
-  adds them (see README "Deployment" section).
+  UI shows per-app status. Requires a `CLOUDFLARE_API_TOKEN` repo secret with **both** "Edit
+  Cloudflare Workers" (dashboard) and "Cloudflare Pages: Edit" (web) permissions, plus
+  `CLOUDFLARE_ACCOUNT_ID` — see README "Deployment" section.
 - **`apps/api` was deliberately left out of this CI wiring** — unlike the two static apps, deploying
   it for real needs a provisioned D1 database, a created queue, and an onboarded Email Service
   sending domain, none of which exist yet (see "Future Cloudflare deployment (API)" in README.md).
