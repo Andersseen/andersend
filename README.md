@@ -24,6 +24,7 @@ billing, authentication beyond a single API key, multi-tenancy, or public regist
 
 ```text
 apps/
+  web/                Analog marketing landing page (static SPA)
   dashboard/          Analog dashboard (static SPA)
   api/                Hono Cloudflare Worker (HTTP API + queue consumer)
 packages/
@@ -59,22 +60,28 @@ cp apps/api/.dev.vars.example apps/api/.dev.vars
 cp apps/dashboard/.env.example apps/dashboard/.env   # optional, defaults already match
 
 pnpm setup:local   # installs deps, applies D1 migrations, seeds local data
-pnpm dev           # runs the API (8787) and dashboard (5173) together
+pnpm dev           # runs the API (8787), dashboard (5173), and landing page (4200) together
 ```
 
 Open http://localhost:5173. The dashboard is pre-populated with a week of seeded emails across the
-three built-in templates so every page has something to show immediately.
+three built-in templates so every page has something to show immediately. Open
+http://localhost:4200 for the marketing landing page that explains the project.
 
 ## Commands
 
 | Command | Description |
 | --- | --- |
-| `pnpm dev` | Run the API and dashboard together via Turborepo |
+| `pnpm dev` | Run the API, dashboard, and landing page together via Turborepo |
+| `pnpm dev:api` | Run only the API (`:8787`) |
+| `pnpm dev:dashboard` | Run only the dashboard (`:5173`) |
+| `pnpm dev:web` | Run only the landing page (`:4200`) |
 | `pnpm build` | Production build of every app/package |
 | `pnpm lint` | ESLint across the monorepo |
 | `pnpm typecheck` | TypeScript project checks across the monorepo |
 | `pnpm test` | Unit/integration tests (Vitest) across the monorepo |
 | `pnpm test:e2e` | Playwright smoke test (starts both dev servers automatically) |
+| `pnpm deploy:dashboard` | Build and deploy the dashboard to Cloudflare Workers |
+| `pnpm deploy:web` | Build and deploy the landing page to Cloudflare Workers |
 | `pnpm db:migrate:local` | Apply D1 migrations to the local database |
 | `pnpm db:seed:local` | Reset and reseed local data (also available at runtime via the dev-only `POST /v1/dev/reset` route) |
 | `pnpm setup:local` | `install` + `db:migrate:local` + `db:seed:local` |
@@ -83,6 +90,7 @@ three built-in templates so every page has something to show immediately.
 
 | App | URL |
 | --- | --- |
+| Landing page | http://localhost:4200 |
 | Dashboard | http://localhost:5173 |
 | API | http://localhost:8787 |
 | Health check | http://localhost:8787/health |
@@ -135,6 +143,36 @@ pnpm test:e2e    # Playwright: send an email end-to-end through the mock provide
   list, open its details page, and confirm the status reaches `Delivered` with a full event
   timeline (`queued` → `processing` → `delivered`).
 
+## Deployment
+
+The dashboard and the landing page are plain static builds (`dist/client`), deployed as
+Cloudflare Workers with static assets (`apps/dashboard/wrangler.jsonc`, `apps/web/wrangler.jsonc`)
+— no server-side code, just Cloudflare serving the built files with SPA fallback routing.
+
+**Locally**, once you've run `wrangler login` once:
+
+```bash
+pnpm deploy:dashboard   # builds dist/client, then `wrangler deploy` from apps/dashboard
+pnpm deploy:web         # builds dist/client, then `wrangler deploy` from apps/web
+```
+
+**In CI**, `.github/workflows/ci.yml` deploys both independently (`deploy-dashboard` and
+`deploy-web` jobs) on every push to `main`, after the shared `build` job passes. Both jobs use
+[`cloudflare/wrangler-action`](https://github.com/cloudflare/wrangler-action) and require two
+repository secrets that aren't set yet:
+
+| Secret | Where to get it |
+| --- | --- |
+| `CLOUDFLARE_API_TOKEN` | Cloudflare dashboard → My Profile → API Tokens → create a token with "Edit Cloudflare Workers" permissions |
+| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare dashboard → right sidebar of any domain/Workers overview page |
+
+Add both under the GitHub repo's Settings → Secrets and variables → Actions before the deploy jobs
+will succeed; until then they'll fail on the `wrangler-action` step (lint/typecheck/test/build
+still run and pass on every PR regardless).
+
+The API (`apps/api`) is intentionally **not** wired into this — see "Future Cloudflare deployment"
+below for what it still needs before it can deploy for real.
+
 ## Current limitations
 
 This iteration is intentionally local-only. Not implemented (see `context.md` for the reasoning):
@@ -145,11 +183,13 @@ This iteration is intentionally local-only. Not implemented (see `context.md` fo
 - Real Cloudflare Email Service sending (the adapter is implemented and selectable via
   `EMAIL_PROVIDER=cloudflare`, but requires a real onboarded sending domain that is out of scope
   here)
-- A marketing landing page, advanced analytics, and drag-and-drop email building
+- Advanced analytics and drag-and-drop email building
 
-## Future Cloudflare deployment
+## Future Cloudflare deployment (API)
 
-None of this is wired up yet — it's the intended next step once this foundation is validated:
+The dashboard and landing page deploy today (see "Deployment" above). The API is the one piece
+still not wired up for a real deployment — it's the intended next step once this foundation is
+validated:
 
 1. `wrangler d1 create andersend-db` and replace the placeholder `database_id` in
    `apps/api/wrangler.jsonc`.
@@ -161,8 +201,8 @@ None of this is wired up yet — it's the intended next step once this foundatio
 4. Move `ANDERSEND_API_KEY` to `wrangler secret put ANDERSEND_API_KEY` (or migrate to the
    database-backed `api_keys` table via a new `ApiKeyAuthProvider` implementation — the
    authentication abstraction was built for exactly this swap).
-5. Deploy the API with `wrangler deploy` and the dashboard's static `dist/client` output to
-   Cloudflare Pages, then point `mail.andersseen.dev` / `api.mail.andersseen.dev` at them.
+5. Deploy with `wrangler deploy` from `apps/api`, then point `api.mail.andersseen.dev` at it and
+   update `VITE_API_BASE_URL` for the deployed dashboard.
 
 ## Package compatibility notes
 

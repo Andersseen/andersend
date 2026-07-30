@@ -1,0 +1,12 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "andersend-dashboard",
+  "compatibility_date": "2026-07-29",
+  "assets": {
+    "directory": "./dist/client",
+    // The dashboard uses Analog's file-based Angular router (deep links like
+    // /emails/123), so any path that isn't a built asset must still fall
+    // back to index.html for the client-side router to take over.
+    "not_found_handling": "single-page-application"
+  }
+}
