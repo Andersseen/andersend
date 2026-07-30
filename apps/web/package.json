@@ -9,7 +9,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "typecheck": "tsc -p tsconfig.app.json --noEmit",
-    "deploy": "wrangler deploy"
+    "deploy": "wrangler pages deploy"
   },
   "dependencies": {
     "@angular/common": "^21.2.0",

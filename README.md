@@ -69,41 +69,41 @@ http://localhost:4200 for the marketing landing page that explains the project.
 
 ## Commands
 
-| Command | Description |
-| --- | --- |
-| `pnpm dev` | Run the API, dashboard, and landing page together via Turborepo |
-| `pnpm dev:api` | Run only the API (`:8787`) |
-| `pnpm dev:dashboard` | Run only the dashboard (`:5173`) |
-| `pnpm dev:web` | Run only the landing page (`:4200`) |
-| `pnpm build` | Production build of every app/package |
-| `pnpm lint` | ESLint across the monorepo |
-| `pnpm typecheck` | TypeScript project checks across the monorepo |
-| `pnpm test` | Unit/integration tests (Vitest) across the monorepo |
-| `pnpm test:e2e` | Playwright smoke test (starts both dev servers automatically) |
-| `pnpm deploy:dashboard` | Build and deploy the dashboard to Cloudflare Workers |
-| `pnpm deploy:web` | Build and deploy the landing page to Cloudflare Workers |
-| `pnpm db:migrate:local` | Apply D1 migrations to the local database |
-| `pnpm db:seed:local` | Reset and reseed local data (also available at runtime via the dev-only `POST /v1/dev/reset` route) |
-| `pnpm setup:local` | `install` + `db:migrate:local` + `db:seed:local` |
+| Command                 | Description                                                                                         |
+| ----------------------- | --------------------------------------------------------------------------------------------------- |
+| `pnpm dev`              | Run the API, dashboard, and landing page together via Turborepo                                     |
+| `pnpm dev:api`          | Run only the API (`:8787`)                                                                          |
+| `pnpm dev:dashboard`    | Run only the dashboard (`:5173`)                                                                    |
+| `pnpm dev:web`          | Run only the landing page (`:4200`)                                                                 |
+| `pnpm build`            | Production build of every app/package                                                               |
+| `pnpm lint`             | ESLint across the monorepo                                                                          |
+| `pnpm typecheck`        | TypeScript project checks across the monorepo                                                       |
+| `pnpm test`             | Unit/integration tests (Vitest) across the monorepo                                                 |
+| `pnpm test:e2e`         | Playwright smoke test (starts both dev servers automatically)                                       |
+| `pnpm deploy:dashboard` | Build and deploy the dashboard to Cloudflare Workers                                                |
+| `pnpm deploy:web`       | Build and deploy the landing page to Cloudflare Workers                                             |
+| `pnpm db:migrate:local` | Apply D1 migrations to the local database                                                           |
+| `pnpm db:seed:local`    | Reset and reseed local data (also available at runtime via the dev-only `POST /v1/dev/reset` route) |
+| `pnpm setup:local`      | `install` + `db:migrate:local` + `db:seed:local`                                                    |
 
 ## Application URLs
 
-| App | URL |
-| --- | --- |
-| Landing page | http://localhost:4200 |
-| Dashboard | http://localhost:5173 |
-| API | http://localhost:8787 |
+| App          | URL                          |
+| ------------ | ---------------------------- |
+| Landing page | http://localhost:4200        |
+| Dashboard    | http://localhost:5173        |
+| API          | http://localhost:8787        |
 | Health check | http://localhost:8787/health |
 
 ## Environment variables
 
-| Variable | Where | Purpose |
-| --- | --- | --- |
-| `ANDERSEND_API_KEY` | `apps/api/.dev.vars` | Bearer token accepted by `/v1/*` routes locally. Defaults to `and_dev_local`. |
-| `EMAIL_PROVIDER` | `apps/api/wrangler.jsonc` (`vars`) | `mock` (default) or `cloudflare`. |
-| `ENVIRONMENT` | `apps/api/wrangler.jsonc` (`vars`) | `local` in this iteration. |
-| `VITE_API_BASE_URL` | `apps/dashboard/.env` | Overrides the API origin the dashboard talks to. Defaults to `http://localhost:8787`. |
-| `VITE_ANDERSEND_API_KEY` | `apps/dashboard/.env` | Overrides the dev API key the dashboard sends. Defaults to `and_dev_local`. |
+| Variable                 | Where                              | Purpose                                                                               |
+| ------------------------ | ---------------------------------- | ------------------------------------------------------------------------------------- |
+| `ANDERSEND_API_KEY`      | `apps/api/.dev.vars`               | Bearer token accepted by `/v1/*` routes locally. Defaults to `and_dev_local`.         |
+| `EMAIL_PROVIDER`         | `apps/api/wrangler.jsonc` (`vars`) | `mock` (default) or `cloudflare`.                                                     |
+| `ENVIRONMENT`            | `apps/api/wrangler.jsonc` (`vars`) | `local` in this iteration.                                                            |
+| `VITE_API_BASE_URL`      | `apps/dashboard/.env`              | Overrides the API origin the dashboard talks to. Defaults to `http://localhost:8787`. |
+| `VITE_ANDERSEND_API_KEY` | `apps/dashboard/.env`              | Overrides the dev API key the dashboard sends. Defaults to `and_dev_local`.           |
 
 Secrets are never committed: `.dev.vars` and `.env` are gitignored, and only `.env.example` /
 `.dev.vars.example` are tracked.
@@ -145,30 +145,37 @@ pnpm test:e2e    # Playwright: send an email end-to-end through the mock provide
 
 ## Deployment
 
-The dashboard and the landing page are plain static builds (`dist/client`), deployed as
-Cloudflare Workers with static assets (`apps/dashboard/wrangler.jsonc`, `apps/web/wrangler.jsonc`)
-— no server-side code, just Cloudflare serving the built files with SPA fallback routing.
+Both apps are plain static builds (`dist/client`), but deploy to different Cloudflare products:
+the dashboard is a Cloudflare Worker with static assets (`apps/dashboard/wrangler.jsonc`) — no
+server-side code, just Cloudflare serving the built files with SPA fallback routing. The landing
+page deploys to **Cloudflare Pages** instead (`apps/web/wrangler.jsonc`'s `pages_build_output_dir`)
+— a deliberate exception for that one app; see `context.md` for why.
 
 **Locally**, once you've run `wrangler login` once:
 
 ```bash
 pnpm deploy:dashboard   # builds dist/client, then `wrangler deploy` from apps/dashboard
-pnpm deploy:web         # builds dist/client, then `wrangler deploy` from apps/web
+pnpm deploy:web         # builds dist/client, then `wrangler pages deploy` from apps/web
+```
+
+The Pages project only needs creating once, before the first deploy (already done for this repo):
+
+```bash
+cd apps/web && npx wrangler pages project create andersend-web --production-branch=main
 ```
 
 **In CI**, `.github/workflows/ci.yml` deploys both independently (`deploy-dashboard` and
 `deploy-web` jobs) on every push to `main`, after the shared `build` job passes. Both jobs use
 [`cloudflare/wrangler-action`](https://github.com/cloudflare/wrangler-action) and require two
-repository secrets that aren't set yet:
+repository secrets, set under the GitHub repo's Settings → Secrets and variables → Actions:
 
-| Secret | Where to get it |
-| --- | --- |
-| `CLOUDFLARE_API_TOKEN` | Cloudflare dashboard → My Profile → API Tokens → create a token with "Edit Cloudflare Workers" permissions |
-| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare dashboard → right sidebar of any domain/Workers overview page |
+| Secret                  | Where to get it                                                                                                                                             |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CLOUDFLARE_API_TOKEN`  | Cloudflare dashboard → My Profile → API Tokens → a token with **both** "Edit Cloudflare Workers" (dashboard) and "Cloudflare Pages: Edit" (web) permissions |
+| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare dashboard → right sidebar of any domain/Workers overview page                                                                                    |
 
-Add both under the GitHub repo's Settings → Secrets and variables → Actions before the deploy jobs
-will succeed; until then they'll fail on the `wrangler-action` step (lint/typecheck/test/build
-still run and pass on every PR regardless).
+If either secret is missing or invalid, the deploy jobs fail at the `wrangler-action` step —
+lint/typecheck/test/build still run and pass independently on every PR.
 
 The API (`apps/api`) is intentionally **not** wired into this — see "Future Cloudflare deployment"
 below for what it still needs before it can deploy for real.
