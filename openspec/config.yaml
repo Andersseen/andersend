@@ -1,0 +1,47 @@
+schema: spec-driven
+
+# Project context (optional)
+# This is shown to AI when creating artifacts.
+# Add your tech stack, conventions, style guides, domain knowledge, etc.
+# Example:
+#   context: |
+#     Tech stack: TypeScript, React, Node.js
+#     We use conventional commits
+#     Domain: e-commerce platform
+
+context: |
+  Andersend is a personal transactional email platform (Resend-like), single-developer scope
+  (no billing/multi-tenancy/public signup). pnpm/Turborepo monorepo: Hono API on Cloudflare
+  Workers (apps/api), Analog/Angular dashboard (apps/dashboard), Analog marketing page (apps/web),
+  shared packages (contracts, database, email-core, email-templates, sdk).
+
+  Full conventions, commands, and architecture live in AGENTS.md — read it before proposing or
+  applying any change. Current priorities and in-flight work live in STATE.md; longer-term
+  direction lives in ROADMAP.md. Do not duplicate their content here; this block is just an index.
+
+  Key rules AGENTS.md expands on: apps/* depend on packages/*, never the reverse; no raw SQL or
+  business logic in apps/api route handlers (packages/database repositories only); every API
+  response is validated against packages/contracts on both ends; TypeScript strict mode
+  everywhere.
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     proposal:
+#       - Keep proposals under 500 words
+#       - Always include a "Non-goals" section
+#     tasks:
+#       - Break tasks into chunks of max 2 hours
+
+# Per-operation guidance (optional)
+# Add advisory guidance for how apply and archive work should be conducted.
+# This is separate from artifact rules above.
+# Example:
+#   operations:
+#     apply:
+#       guidance:
+#         - Keep test summaries concise
+#     archive:
+#       guidance:
+#         - Summarize the archive outcome before finishing
