@@ -1,0 +1,30 @@
+@import 'tailwindcss';
+
+/*
+ * Volt UI is "copy-and-own": consumers only need this one import. Its
+ * `themes/core.css` self-registers an `@source` pointing at Volt's compiled
+ * bundle, so Tailwind scans Volt's own templates for utility classes without
+ * any extra app-side configuration.
+ */
+@import '@voltui/components/themes.css';
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Helvetica, Arial, sans-serif;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
