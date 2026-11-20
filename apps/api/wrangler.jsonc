@@ -58,8 +58,8 @@
         {
           "binding": "DB",
           "database_name": "andersend-db",
-          // Replace with the id printed by `wrangler d1 create andersend-db`.
-          "database_id": "00000000-0000-0000-0000-000000000000",
+          // Production D1 (created with `wrangler d1 create andersend-db`, WEUR).
+          "database_id": "7dc35b97-17d9-4e1f-98fc-167dce578e2a",
           "migrations_dir": "../../packages/database/migrations"
         }
       ],
