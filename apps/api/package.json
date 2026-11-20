@@ -5,13 +5,16 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev --port 8787",
+    "deploy": "wrangler deploy --env production",
     "build": "wrangler deploy --dry-run --outdir dist",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "types": "wrangler types",
     "db:migrate:local": "wrangler d1 migrations apply andersend-db --local",
-    "db:seed:local": "tsx scripts/seed-local.ts"
+    "db:migrate:remote": "wrangler d1 migrations apply andersend-db --env production --remote",
+    "db:seed:local": "tsx scripts/seed-local.ts",
+    "api-key:create": "tsx scripts/create-api-key.ts"
   },
   "dependencies": {
     "@andersseen/contracts": "workspace:*",

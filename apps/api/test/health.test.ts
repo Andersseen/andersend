@@ -23,3 +23,21 @@ describe("GET /health", () => {
     expect(response.status).not.toBe(401);
   });
 });
+
+describe("CORS", () => {
+  it("allows an origin listed in CORS_ORIGINS", async () => {
+    const response = await exports.default.fetch("https://example.com/health", {
+      headers: { Origin: "http://localhost:5173" },
+    });
+    expect(response.headers.get("Access-Control-Allow-Origin")).toBe(
+      "http://localhost:5173",
+    );
+  });
+
+  it("does not allow an unlisted origin", async () => {
+    const response = await exports.default.fetch("https://example.com/health", {
+      headers: { Origin: "https://evil.example" },
+    });
+    expect(response.headers.get("Access-Control-Allow-Origin")).toBeNull();
+  });
+});

@@ -12,7 +12,17 @@ import { statsRoute } from "./routes/stats";
 import { templatesRoute } from "./routes/templates";
 import type { AppEnv } from "./types";
 
-const DASHBOARD_LOCAL_ORIGIN = "http://localhost:5173";
+const DEFAULT_CORS_ORIGINS = ["http://localhost:5173"];
+
+/** `CORS_ORIGINS` is a comma-separated allow-list; unset/empty falls back to the local dashboard. */
+export function readCorsOrigins(env: Env): string[] {
+  const raw: string = env.CORS_ORIGINS;
+  const configured = raw
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+  return configured.length > 0 ? configured : DEFAULT_CORS_ORIGINS;
+}
 
 export function createApp() {
   const app = new Hono<AppEnv>();
@@ -22,7 +32,8 @@ export function createApp() {
   app.use(
     "*",
     cors({
-      origin: DASHBOARD_LOCAL_ORIGIN,
+      origin: (origin, c) =>
+        readCorsOrigins(c.env).includes(origin) ? origin : null,
       allowHeaders: ["Content-Type", "Authorization", "Idempotency-Key"],
       allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     }),

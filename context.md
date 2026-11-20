@@ -109,11 +109,12 @@ these decisions fit together and `README.md` for how to run everything.
   UI shows per-app status. Requires a `CLOUDFLARE_API_TOKEN` repo secret with **both** "Edit
   Cloudflare Workers" (dashboard) and "Cloudflare Pages: Edit" (web) permissions, plus
   `CLOUDFLARE_ACCOUNT_ID` — see README "Deployment" section.
-- **`apps/api` was deliberately left out of this CI wiring** — unlike the two static apps, deploying
-  it for real needs a provisioned D1 database, a created queue, and an onboarded Email Service
-  sending domain, none of which exist yet (see "Future Cloudflare deployment (API)" in README.md).
-  Wiring a deploy job for it now would just fail every time or deploy something without a working
-  database.
+- **`apps/api` is deployed manually, not from CI** — it has a `production` Wrangler environment
+  (`env.production`, so local dev/tests keep the top-level `local`/`mock` vars untouched) and
+  `pnpm deploy:api`, but it needs a provisioned D1 database, queue and onboarded sending domain
+  first (README "Production deployment (API)"). A CI job comes once a manual deploy has worked;
+  until then it would just fail. Wrangler environments don't inherit bindings, which is why every
+  binding is repeated under `env.production`.
 
 ## API
 
@@ -138,10 +139,9 @@ these decisions fit together and `README.md` for how to run everything.
   never contacts anything external, and deterministically fails when `fail@example.com` appears in
   `to`/`cc`/`bcc` — this is what both the seed data and the test suites use to exercise the failed
   path.
-- **Cloudflare provider adapter is prepared but not required** — implemented, typed, and wired into
-  `wrangler.jsonc` (`send_email` binding), but selecting it locally would require a real
-  Cloudflare account and an onboarded sending domain, which is explicitly out of scope for this
-  iteration.
+- **Cloudflare provider is production-only** — selected by `EMAIL_PROVIDER=cloudflare` in
+  `env.production`; locally it stays `mock`, since using it needs a real account and an onboarded
+  sending domain.
 - Template interpolation is a small, deliberately unsophisticated `{{variableName}}` regex
   substitution (`packages/email-core/src/template-renderer.ts`) with per-variable HTML escaping —
   not a general-purpose template engine, by design ("do not introduce an unrestricted template
@@ -149,15 +149,22 @@ these decisions fit together and `README.md` for how to run everything.
 
 ## Authentication
 
-- A single dev API key (`ANDERSEND_API_KEY=and_dev_local`) authenticates every `/v1/*` request via
-  `DevApiKeyAuthProvider`. The `api_keys` table, its repository functions, and the
-  `ApiKeyAuthProvider` interface all exist so a database-backed provider can replace this without
-  touching route handlers — but that replacement is not implemented, per the brief ("API key
-  management does not need to be fully implemented in this iteration").
+- **Database-backed keys** (`api_keys`: prefix + SHA-256 hash) authenticate `/v1/*`. Format
+  `and_<id8>_<secret>`, prefix = up to the second `_`, chosen so the existing seeded dev key
+  `and_dev_local` (prefix `and_dev_`) is a valid instance and one lookup path covers both. Unsalted
+  SHA-256 is deliberate: keys carry 256 random bits, so slow/salted hashing buys nothing. A unique
+  index on `prefix` (migration 0006) makes a collision fail the mint instead of producing a dead key.
+- **The `ANDERSEND_API_KEY` env key still works, but only outside production** — it keeps local
+  setups without a seeded database usable. Production ignores it and also refuses the `and_dev_`
+  prefix, so an accidentally seeded remote database isn't an open door.
+- **Keys are minted by a CLI script, not an HTTP endpoint** — the first production key can't be
+  created over an API that needs a key, and create/rotate/revoke endpoints + dashboard UI are the
+  rest of ROADMAP Phase 2. Revocation today is a manual `UPDATE api_keys SET revoked_at = ...`.
+- **The deployed dashboard is not pointed at the production API yet**: it is a static SPA, so any
+  key it used would be baked into a public bundle. That needs a real dashboard login first;
+  `CORS_ORIGINS` is ready for when it exists.
 
 ## What's next (not built)
 
-Billing, auth beyond the one dev key, teams/organizations, multi-tenancy, real Cloudflare
-deployment, and full API key lifecycle management (create/rotate/revoke) are all explicitly out of
-scope for this iteration — see README.md's "Current limitations" and "Future Cloudflare deployment"
-sections for what changes when any of these are picked up.
+Billing, teams/organizations, multi-tenancy, dashboard login, and API key create/rotate/revoke
+over HTTP are out of scope for this iteration — see README.md's "Current limitations".

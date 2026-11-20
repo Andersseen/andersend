@@ -61,7 +61,10 @@ pnpm db:migrate:local    # apply D1 migrations locally
 pnpm db:seed:local       # wipe + reseed local D1 data (also POST /v1/dev/reset at runtime)
 
 pnpm deploy:dashboard    # build + wrangler deploy for apps/dashboard (Cloudflare Worker)
-pnpm deploy:web          # build + wrangler pages deploy for apps/web (Cloudflare Pages; apps/api has no deploy yet)
+pnpm deploy:web          # build + wrangler pages deploy for apps/web (Cloudflare Pages)
+pnpm deploy:api          # wrangler deploy --env production for apps/api (manual, not in CI)
+pnpm db:migrate:remote   # apply D1 migrations to the production database
+pnpm api-key:create --name <consumer> [--remote]   # mint an API key; prints it once
 
 pnpm format              # prettier --write across ts/tsx/md/json
 ```
@@ -147,9 +150,12 @@ Both are swapped purely via environment/config — never touch route or queue co
   deterministically when `fail@example.com` appears in `to`/`cc`/`bcc` (used by tests/seed data to
   exercise the failure path); `CloudflareEmailProvider` calls the `env.EMAIL.send()` binding.
   Selected by `apps/api/src/lib/provider-factory.ts` from `EMAIL_PROVIDER`.
-- `ApiKeyAuthProvider` (`apps/api/src/lib/auth-provider.ts`): `DevApiKeyAuthProvider` is the only
-  implementation — compares the Bearer token to `env.ANDERSEND_API_KEY` and resolves the single
-  seeded project. The `api_keys` table/repository already exist for a future DB-backed provider.
+- `ApiKeyAuthProvider` (`apps/api/src/lib/auth-provider.ts`): `CompositeApiKeyAuthProvider` tries
+  `DatabaseApiKeyAuthProvider` first (keys look like `and_<id8>_<secret>`; looked up by prefix,
+  SHA-256 compared in constant time, revoked keys excluded, `last_used_at` touched via
+  `waitUntil`), then — **outside production only** — `DevApiKeyAuthProvider`, which compares the
+  token to `env.ANDERSEND_API_KEY`. Production also refuses the seeded `and_dev_` prefix. Keys are
+  minted with `apps/api/scripts/create-api-key.ts`, never over HTTP yet.
 
 ### Dashboard
 
@@ -195,9 +201,9 @@ D1 migrations live in `packages/database/migrations` but are applied _from_ `app
   template engine; don't extend it into one.
 - Secrets are gitignored; only `.env.example` / `.dev.vars.example` are tracked. Copy them per the
   README before running anything locally.
-- `apps/api` is intentionally not wired into CI deploys yet (needs a real D1 database, queue, and
-  onboarded Email Service domain) — don't add a deploy job for it without checking `context.md` and
-  README's "Future Cloudflare deployment" section first.
+- `apps/api` deploys manually via its `production` Wrangler environment (`pnpm deploy:api`); it is
+  intentionally not wired into CI deploys until a first manual deploy is proven — check
+  `context.md` and README's "Production deployment (API)" section before adding a job.
 
 ## Keeping the docs honest
 
