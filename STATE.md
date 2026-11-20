@@ -9,13 +9,14 @@ than none, since the next session will trust it.
 
 ## Current phase
 
-**Phase 0 (Foundation) is complete. Phase 1 (real deployment of `apps/api`): code done on branch
-`feat/api-deployment` (OpenSpec change `api-production-deployment`), Cloudflare provisioning not
-started.** See `ROADMAP.md` Phase 1 for the remaining steps.
+**Phase 1: `apps/api` is deployed** (`andersend-api-production` on `https://api.mail.andersseen.dev`,
+D1 `andersend-db` in WEUR, queue `andersend-emails`, migrations 0001–0006 applied, one key
+`falcotech` minted). **Cloudflare Email Sending for `andersseen.dev` is not enabled yet**, so real
+sends will fail until it is. See `ROADMAP.md` Phase 1.
 
 ## What's live
 
-- `apps/api`: built and tested, **not deployed yet**. Has a `production` Wrangler environment,
+- `apps/api`: deployed manually (`pnpm deploy:api`) to `api.mail.andersseen.dev`. Has a `production` Wrangler environment,
   database-backed API keys (`and_<id8>_<secret>`, minted with `pnpm api-key:create`), and
   configurable CORS. Locally it still uses the mock provider. No CI deploy job.
 - `apps/dashboard` and `apps/web`: built and CI-deployed to Cloudflare on every push to `main`
@@ -29,17 +30,16 @@ started.** See `ROADMAP.md` Phase 1 for the remaining steps.
 
 ## In flight / not yet committed
 
-- `feat/api-deployment`: the `api-production-deployment` OpenSpec change (proposal, specs, design,
-  tasks under `openspec/changes/`) and its implementation. To archive once merged and deployed.
+- OpenSpec change `api-production-deployment` (merged in PR #4) — archive once a real send works.
 
 ## Next up
 
-1. Provision Cloudflare (D1, queue, `andersseen.dev` Email Sending), `pnpm db:migrate:remote`,
-   `pnpm deploy:api`, mint a key for FalcoTech.
-2. Switch FalcoTech's contact form from Resend to Andersend (keep Resend as fallback).
+1. `wrangler email sending enable andersseen.dev`, then a real test send to an own inbox.
+2. Switch FalcoTech's contact form from Resend to Andersend (keep Resend as fallback); set
+   `ANDERSEND_API_KEY` in Vercel.
+3. CI deploy job for `apps/api`.
 
 ## Known gaps to keep in mind
 
-- `env.production`'s `database_id` is still the placeholder — `pnpm deploy:api` fails until step 1.
 - Production emails stop at `sent` (no delivery webhooks).
 - Key revocation is a manual SQL `UPDATE`; no create/rotate/revoke endpoints or UI yet.
