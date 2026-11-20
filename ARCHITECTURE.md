@@ -89,13 +89,13 @@ Local Cloudflare Queues are simulated in-process by Miniflare (bundled with Wran
 
 ## Database entities
 
-| Table | Purpose |
-| --- | --- |
-| `projects` | Single row today (`andersseen-personal`); every other table scopes to a `project_id` so teams/multi-tenancy can be added later without a migration. |
-| `api_keys` | Stores only a `prefix` (for display) and `key_hash` (SHA-256) — never a plaintext key. Seeded with one row representing the local dev key; not yet used for authentication (see below). |
-| `templates` | `subject`/`html`/`text` contain `{{variableName}}` placeholders; `variables` stores the example values shown in previews and used to seed the Send Email form. |
-| `emails` | One row per send. Array/object fields (`to_addresses`, `variables`, ...) are stored as JSON strings and (de)serialized in `packages/database/src/mappers.ts`. `status` follows the lifecycle below. |
-| `email_events` | Append-only audit trail per email (`queued` → `processing` → `sent`/`delivered`/`failed`), rendered as the timeline on the email details page. |
+| Table          | Purpose                                                                                                                                                                                             |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `projects`     | Single row today (`andersseen-personal`); every other table scopes to a `project_id` so teams/multi-tenancy can be added later without a migration.                                                 |
+| `api_keys`     | Stores only a `prefix` (for display) and `key_hash` (SHA-256) — never a plaintext key. Seeded with one row representing the local dev key; not yet used for authentication (see below).             |
+| `templates`    | `subject`/`html`/`text` contain `{{variableName}}` placeholders; `variables` stores the example values shown in previews and used to seed the Send Email form.                                      |
+| `emails`       | One row per send. Array/object fields (`to_addresses`, `variables`, ...) are stored as JSON strings and (de)serialized in `packages/database/src/mappers.ts`. `status` follows the lifecycle below. |
+| `email_events` | Append-only audit trail per email (`queued` → `processing` → `sent`/`delivered`/`failed`), rendered as the timeline on the email details page.                                                      |
 
 Email status lifecycle (`packages/contracts/src/email-status.ts`):
 
@@ -151,7 +151,7 @@ is the single place the SDK is instantiated; every page injects it and calls
 `api.client.<resource>.<method>()` — there are no hardcoded arrays standing in for API data
 anywhere in the dashboard. The one exception where a package is reused directly rather than
 through the API is the template editor's live preview, which imports `renderTemplate` from
-`@andersseen/email-core` to reflect *unsaved* edits client-side (the server's preview endpoint can
+`@andersseen/email-core` to reflect _unsaved_ edits client-side (the server's preview endpoint can
 only render what's already stored).
 
 Responsibility split for the dashboard's UI ecosystem:
@@ -165,16 +165,18 @@ Responsibility split for the dashboard's UI ecosystem:
   (`moveEnter`, `moveStagger`); disabled globally when `prefers-reduced-motion: reduce` matches.
 - **Lumen Icons** (`lumen-icons`) — the only icon source used anywhere in the dashboard.
 
-## Future production architecture
+## Production architecture
 
-Nothing below is wired up yet; it's the intended next iteration (see README.md "Future Cloudflare
-deployment" for the exact commands):
+`apps/api` has a `production` Wrangler environment (README.md "Production deployment (API)" has
+the exact commands):
 
-- `apps/api` deploys as a real Cloudflare Worker with a real D1 database, a real Queue, and
-  `EMAIL_PROVIDER=cloudflare` after onboarding `andersseen.dev` to Cloudflare Email Service.
-- `apps/dashboard` deploys as a static Cloudflare Pages site (`vite build` output is already a
-  plain static SPA — no server-side code to stand up).
-- `ANDERSEND_API_KEY` moves to a Worker secret (or the database-backed `api_keys` table via the
-  `ApiKeyAuthProvider` swap above).
+- One Worker (`andersend-api-production`) on the custom domain `api.mail.andersseen.dev`, bound to
+  a real D1 database, the `andersend-emails` Queue, and the `send_email` binding with
+  `EMAIL_PROVIDER=cloudflare` (successful hand-off → status `sent`; no delivery webhooks yet).
+- Authentication is database-backed only (`and_<id8>_<secret>` keys, minted with
+  `pnpm api-key:create --remote`); the env dev key and the seeded `and_dev_` key are refused, and
+  `/v1/dev/*` returns 404.
+- Callers are other projects' servers (e.g. a contact-form endpoint). The deployed dashboard is
+  not pointed at it yet — that needs a dashboard login so no key ships in a static bundle.
 - Everything else — contracts, the queue-processing logic, the provider abstraction, the schema —
-  is already production-shaped; deployment is a configuration change, not a rewrite.
+  was already production-shaped; deployment was a configuration change, not a rewrite.

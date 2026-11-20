@@ -5,11 +5,11 @@
 // `src/`) and `Cloudflare.Env` (what `env` from `cloudflare:workers` is typed
 // against in tests) are separate interfaces in `worker-configuration.d.ts`.
 interface Env {
-  ANDERSEND_API_KEY: string;
+  ANDERSEND_API_KEY?: string;
 }
 
 declare namespace Cloudflare {
   interface Env {
-    ANDERSEND_API_KEY: string;
+    ANDERSEND_API_KEY?: string;
   }
 }

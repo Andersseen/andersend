@@ -13,8 +13,11 @@
     "test:e2e": "playwright test --config=e2e/playwright.config.ts",
     "deploy:dashboard": "turbo run deploy --filter=@andersseen/dashboard",
     "deploy:web": "turbo run deploy --filter=@andersseen/web",
+    "deploy:api": "turbo run deploy --filter=@andersseen/api",
     "db:migrate:local": "pnpm --filter @andersseen/api db:migrate:local",
     "db:seed:local": "pnpm --filter @andersseen/api db:seed:local",
+    "db:migrate:remote": "pnpm --filter @andersseen/api db:migrate:remote",
+    "api-key:create": "pnpm --filter @andersseen/api api-key:create",
     "setup:local": "pnpm install && pnpm db:migrate:local && pnpm db:seed:local",
     "format": "prettier --write \"**/*.{ts,tsx,md,json}\" --ignore-unknown"
   },

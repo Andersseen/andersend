@@ -27,28 +27,33 @@ directly — see `AGENTS.md`.
   just points to it), OpenSpec (`openspec/`) for spec-driven changes, `ROADMAP.md`/`STATE.md` for
   direction and live status.
 
-## Phase 1 — Real Cloudflare deployment for `apps/api`
+## Phase 1 — Real Cloudflare deployment for `apps/api` (code done, provisioning pending)
 
-`apps/api` is the one piece not wired up for a real deployment yet (see README "Future Cloudflare
-deployment (API)"). In order:
+Code side landed with the `api-production-deployment` OpenSpec change: `env.production` Wrangler
+environment (`EMAIL_PROVIDER=cloudflare`, custom domain `api.mail.andersseen.dev`),
+database-backed API keys, `CORS_ORIGINS`, `pnpm deploy:api` / `db:migrate:remote` /
+`api-key:create`. Remaining, in order (README "Production deployment (API)"):
 
-1. `wrangler d1 create andersend-db` — replace the placeholder `database_id` in
+1. `wrangler d1 create andersend-db` — paste the id into `env.production` in
    `apps/api/wrangler.jsonc`.
-2. `wrangler queues create andersend-emails` (producer/consumer config already targets this name).
-3. `wrangler email sending enable andersseen.dev`, then set `EMAIL_PROVIDER=cloudflare` so
-   `CloudflareEmailProvider` is selected instead of the mock provider.
-4. Move `ANDERSEND_API_KEY` to `wrangler secret put ANDERSEND_API_KEY` (or replace it with a
-   database-backed `ApiKeyAuthProvider` — see Phase 2, they can land together).
-5. `wrangler deploy` from `apps/api`; point `api.mail.andersseen.dev` at it and update
-   `VITE_API_BASE_URL` for the deployed dashboard.
-6. Wire an `apps/api` deploy job into CI once the above is real (mirroring `deploy-dashboard`/
-   `deploy-web`), gated the same way (`needs: build`, push to `main` only).
+2. `wrangler queues create andersend-emails`.
+3. `wrangler email sending enable andersseen.dev`.
+4. `pnpm db:migrate:remote`, `pnpm deploy:api`, mint a key with `--remote`.
+5. Dogfood: switch FalcoTech's contact form (`src/server/routes/api/contact.post.ts`) from
+   Resend to Andersend, keeping Resend as a fallback until it has proven itself.
+6. Wire an `apps/api` deploy job into CI (mirroring `deploy-dashboard`/`deploy-web`, `needs: build`,
+   push to `main` only).
 
-## Phase 2 — API key lifecycle
+## Phase 2 — API key lifecycle and dashboard login
 
-The `api_keys` table, repository functions, and `ApiKeyAuthProvider` interface already exist for
-this. Not yet implemented: create/rotate/revoke endpoints and a database-backed provider to replace
-`DevApiKeyAuthProvider`. Natural to pair with Phase 1 step 4 (moving off the single dev key anyway).
+Database-backed authentication and a CLI to mint keys exist (Phase 1). Not yet implemented:
+create/rotate/revoke endpoints + dashboard UI, and a dashboard login so the deployed dashboard can
+talk to the production API without baking a key into its static bundle.
+
+## Later
+
+- Delivery/bounce webhooks so production emails move past `sent`.
+- Per-key rate limiting.
 
 ## Explicitly not planned (revisit only if the project's scope changes)
 

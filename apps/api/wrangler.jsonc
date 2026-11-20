@@ -9,7 +9,10 @@
   },
   "vars": {
     "ENVIRONMENT": "local",
-    "EMAIL_PROVIDER": "mock"
+    "EMAIL_PROVIDER": "mock",
+    // Comma-separated browser origins allowed by CORS. Server-to-server
+    // callers (another project's backend) don't need to be listed.
+    "CORS_ORIGINS": "http://localhost:5173"
   },
   "d1_databases": [
     {
@@ -37,8 +40,41 @@
   // locally: EMAIL_PROVIDER=mock is the local default and requires no real
   // sending domain. Switching this on for real sends requires
   // `wrangler email sending enable <domain>` first.
-  "send_email": [{ "name": "EMAIL" }]
-  // No `env.production` block yet: this iteration is local-only by design
-  // (see README.md "Future Cloudflare deployment" for the real database_id,
-  // queue, and EMAIL_PROVIDER changes a production environment needs).
+  "send_email": [{ "name": "EMAIL" }],
+  // Real deployment: `pnpm deploy:api` (= `wrangler deploy --env production`).
+  // Wrangler environments do not inherit bindings, so every binding is
+  // repeated here. See README.md "Production deployment (API)".
+  "env": {
+    "production": {
+      "vars": {
+        "ENVIRONMENT": "production",
+        "EMAIL_PROVIDER": "cloudflare",
+        // Add the deployed dashboard's origin here once it is pointed at
+        // this API. Empty falls back to http://localhost:5173.
+        "CORS_ORIGINS": ""
+      },
+      "routes": [{ "pattern": "api.mail.andersseen.dev", "custom_domain": true }],
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "andersend-db",
+          // Replace with the id printed by `wrangler d1 create andersend-db`.
+          "database_id": "00000000-0000-0000-0000-000000000000",
+          "migrations_dir": "../../packages/database/migrations"
+        }
+      ],
+      "queues": {
+        "producers": [{ "binding": "EMAIL_QUEUE", "queue": "andersend-emails" }],
+        "consumers": [
+          {
+            "queue": "andersend-emails",
+            "max_batch_size": 10,
+            "max_batch_timeout": 5,
+            "max_retries": 3
+          }
+        ]
+      },
+      "send_email": [{ "name": "EMAIL" }]
+    }
+  }
 }

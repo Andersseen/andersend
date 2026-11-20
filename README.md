@@ -177,39 +177,74 @@ repository secrets, set under the GitHub repo's Settings → Secrets and variabl
 If either secret is missing or invalid, the deploy jobs fail at the `wrangler-action` step —
 lint/typecheck/test/build still run and pass independently on every PR.
 
-The API (`apps/api`) is intentionally **not** wired into this — see "Future Cloudflare deployment"
-below for what it still needs before it can deploy for real.
+The API (`apps/api`) is deployed manually, not from CI yet — see "Production deployment (API)"
+below.
 
 ## Current limitations
 
-This iteration is intentionally local-only. Not implemented (see `context.md` for the reasoning):
+Not implemented (see `context.md` for the reasoning):
 
 - Billing, subscriptions, teams, organizations, multi-tenancy, public registration
-- Full API key lifecycle management (creating/rotating/revoking keys) — the schema and a
-  read-only dashboard view exist, but only the single `ANDERSEND_API_KEY` dev key can authenticate
-- Real Cloudflare Email Service sending (the adapter is implemented and selectable via
-  `EMAIL_PROVIDER=cloudflare`, but requires a real onboarded sending domain that is out of scope
-  here)
+- API key create/rotate/revoke over HTTP or in the dashboard — keys are minted with
+  `pnpm api-key:create` and revoked by setting `revoked_at` in D1; the dashboard view is read-only
+- Delivery/bounce webhooks: production emails stop at `sent` (accepted by Cloudflare)
+- A CI deploy job for the API
 - Advanced analytics and drag-and-drop email building
 
-## Future Cloudflare deployment (API)
+## Production deployment (API)
 
-The dashboard and landing page deploy today (see "Deployment" above). The API is the one piece
-still not wired up for a real deployment — it's the intended next step once this foundation is
-validated:
+`apps/api` has a `production` Wrangler environment (`env.production` in
+`apps/api/wrangler.jsonc`): `ENVIRONMENT=production`, `EMAIL_PROVIDER=cloudflare`, custom domain
+`api.mail.andersseen.dev`. In production only database-backed API keys authenticate — the
+`ANDERSEND_API_KEY` env key and the seeded `and_dev_` key are refused, and `/v1/dev/*` returns 404.
 
-1. `wrangler d1 create andersend-db` and replace the placeholder `database_id` in
-   `apps/api/wrangler.jsonc`.
-2. `wrangler queues create andersend-emails` (the producer/consumer config already targets this
-   queue name).
-3. `wrangler email sending enable andersseen.dev`, then set `EMAIL_PROVIDER=cloudflare` (e.g. via
-   an `env.production` block or a dashboard-set var) so `CloudflareEmailProvider` is selected
-   instead of the mock provider.
-4. Move `ANDERSEND_API_KEY` to `wrangler secret put ANDERSEND_API_KEY` (or migrate to the
-   database-backed `api_keys` table via a new `ApiKeyAuthProvider` implementation — the
-   authentication abstraction was built for exactly this swap).
-5. Deploy with `wrangler deploy` from `apps/api`, then point `api.mail.andersseen.dev` at it and
-   update `VITE_API_BASE_URL` for the deployed dashboard.
+One-time provisioning (from `apps/api`):
+
+1. `npx wrangler d1 create andersend-db` and paste the printed id over the placeholder
+   `database_id` under `env.production` in `wrangler.jsonc`.
+2. `npx wrangler queues create andersend-emails`.
+3. `npx wrangler email sending enable andersseen.dev` (onboards the sending domain; check the
+   Cloudflare plan requirements for Email Sending at this point).
+
+Then, from the repo root:
+
+```bash
+pnpm db:migrate:remote                                   # apply D1 migrations to production
+pnpm deploy:api                                          # wrangler deploy --env production
+pnpm api-key:create --name falcotech --remote            # prints the key once
+curl https://api.mail.andersseen.dev/health              # provider should be "cloudflare"
+```
+
+`api-key:create` also takes `--project-slug` / `--project-name` (default project:
+`andersseen-personal`, created if missing) and works against the local database without
+`--remote`. To revoke a key:
+`npx wrangler d1 execute andersend-db --env production --remote --command "UPDATE api_keys SET revoked_at = datetime('now') WHERE name = 'falcotech'"`.
+
+### Calling it from another project
+
+Server-side only (never ship a key to a browser):
+
+```ts
+const response = await fetch("https://api.mail.andersseen.dev/v1/emails", {
+  method: "POST",
+  headers: {
+    Authorization: `Bearer ${process.env.ANDERSEND_API_KEY}`,
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    from: "hello@andersseen.dev",
+    to: ["someone@example.com"],
+    replyTo: "visitor@example.com",
+    subject: "Hello",
+    text: "Plain-text body",
+  }),
+});
+// 202 → { id, status: "queued" }; poll GET /v1/emails/:id for the final status.
+```
+
+`from` must be on a domain onboarded in Cloudflare Email Sending. Browser origins that call the
+API (e.g. the deployed dashboard) must be listed in `CORS_ORIGINS`; server-to-server callers don't
+need to be.
 
 ## Package compatibility notes
 
